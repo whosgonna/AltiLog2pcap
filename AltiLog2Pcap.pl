@@ -7,28 +7,25 @@ use ATGN::PCAP;
 use ATGN::PCAP::Util qw(hexdump);
 use Time::Local;
 
-my $dirname   = $ARGV[0] // './';
-my $traceroot = "$dirname/..";
+my $dirname   = $ARGV[0] // '.';
 
-say $traceroot;exit;
+
 
 my $cap = ATGN::PCAP->new({file => "$dirname/SIPLogs.pcap"});
 
-
-## Get address from the config dump.
-my $host_ip = '5.4.3.2';
+my $host_ip     = get_ip($dirname) // '5.4.3.2';
 my $ether_local = '222222111111';
 my $ether_rmt   = '222222222222';
 my $loglines;
 
 
-
+use Data::Printer;
 
 my $dir = io($dirname);
-my $dirs =  { $dir->all_files };
+my $files =  [ $dir->all_files ];
 
 
-for my $file ( values %$dirs ) {
+for my $file ( @$files ) {
 	next unless ( $file->filename =~ /( ^SIPMan.*\.txt$ | ^SIPPstnReg.*txt$ | ^SIPKeepALive.*txt$ )/x );
 
 
@@ -147,30 +144,22 @@ for my $file ( values %$dirs ) {
 	}
 
 
-sub debugprint {
-	my %loglines = shift;
-	for my $key (sort keys %$loglines) {
+sub get_ip {
+	my $logdir    = shift;
+	my $ip;
+	my $traceconf = "$dirname" . '\..\Config\altiserv\db\localsite\Repository.xml';
 
-		my $dir    = "Received";
-		my $local  = "$host_ip:$loglines->{$key}->{dst_port}" ;
-		my $glyph  = '<='; 
-		my $remote = "$loglines->{$key}->{src_host}:$loglines->{$key}->{src_port}";	
-		
-		if ( $loglines->{$key}->{dir} eq 'Sent' ) {
-			$local  = "$host_ip:$loglines->{$key}->{src_port}";
-			$dir    = "Sent";
-			$glyph  = "=>";
-			$remote = "$loglines->{$key}->{dst_host}:$loglines->{$key}->{dst_port}";
+	my $conffh   = IO::File->new;
+	my $conffile = $conffh->open($traceconf, '<');
+	while( defined( my $line = $conffh->getline ) ) {
+		if ( $line =~ m#<IPAddress\s class-='java.lang.String'>
+				(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})
+				</IPAddress>#x
+			) {
+			
+			$ip = $1;
 		}
-		
-		my $size = $loglines->{$key}->{size1};
-		if ($loglines->{$key}->{size2}) {
-			$size = $loglines->{$key}->{size2} if ( $loglines->{$key}->{size2} > $size );
-		}
-		
-		#say $loglines->{$key}->{dir};
-		printf("%s %16s %3s %21s - %4d Bytes %s\n",$key, $local, $glyph, $remote, $size, $dir );
-		#say "$loglines->{$key}->{log}\n";
-	}
+	}	
+	return $ip;
 }
 
