@@ -1,1 +1,1 @@
-pp -M IO::All -M IO::File -M IO::All::Dir -B -x -c -o .\Log2pcap.exe .\AltiLog2pcap.pl
+pp -M IO::All -M IO::File -M IO::All::Dir -o .\Log2pcap.exe .\AltiLog2pcap.pl
