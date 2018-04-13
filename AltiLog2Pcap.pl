@@ -232,7 +232,7 @@ If no value is provided, then the current directory will be used.
 
 =item B<-o>
 
-B<(output)> Where the packet capture should be written.  If no value is provided, 
+B<(output)> Name of the packet capture should be written.  If no value is provided, 
 then the input directory will be used.
 
 =item B<-a> 
