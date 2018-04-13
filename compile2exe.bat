@@ -6,3 +6,6 @@ exe_update.bat --icon .\res\oldaltigen_icon.ico --info "CompanyName=AltiGen Comm
 ::Comments        CompanyName     FileDescription FileVersion
 ::InternalName    LegalCopyright  LegalTrademarks OriginalFilename
 ::ProductName     ProductVersion
+
+:: Generate README from POD
+perldoc.bat .\AltiLog2pcap.pl .\README.md

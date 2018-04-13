@@ -21,7 +21,7 @@ AltiLog2Pcap.exe -h
 
 - **-o**
 
-    **(output)** Where the packet capture should be written.  If no value is provided, 
+    **(output)** Name of the packet capture should be written.  If no value is provided, 
     then the input directory will be used.
 
 - **-a** 
