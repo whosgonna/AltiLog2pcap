@@ -144,7 +144,7 @@ for my $file ( @$files ) {
 			$line->{minute},
 			$line->{hour},
 			$line->{day},
-			$line->{month},
+			( $line->{month} - 1 ),
 			$line->{year}
 		);
 		
