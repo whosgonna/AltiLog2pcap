@@ -55,7 +55,6 @@ my $files =  [ $dir->all_files ];
 for my $file ( @$files ) {
 	next unless ( $file->filename =~ /( ^SIPMan.*\.txt$ | ^SIPPstnReg.*txt$ | ^SIPKeepALive.*txt$ )/ix );
 
-
 	my $fh = IO::File->new;
 	my $file = $fh->open($file->name, "<");
 	my $current;
@@ -65,15 +64,19 @@ for my $file ( @$files ) {
 		if ( $line =~ /^\s\s+$/ ) {
 			undef($current);
 		}
+		if ( $line =~ /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/ ) {
+			$current = undef;
+		}
+		
 		if ( 
 			$line =~ m%^
-			(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s
-			(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}),(?<msec>\d{3})
-			\(\d{1,5}\)\s\[
-			(?<thread>0x[0-9a-f]{1,5}) \]\s
-			\(\(\d{1,2},\d{1,6}\)\)\s #literal
-			(?<protocol>UDP|TCP)\s
-			(?<dir>Sent)\( (?<size1>\d{1,3}) / (?<size2>\d{1,3}) \)\s
+			(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s 				       # Y-M-D
+			(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}),(?<msec>\d{3})    # HH:mm:SS,ms
+			\(\d{1,5}\)\s\[                                                    # literal number inside of parenthisis
+			(?<thread>0x[0-9a-f]{1,5}) \]\s                                    # Thread ID:  a hexidcimal number inside of square brakets
+			\(\(\d{1,2},\d{1,6}\)\)\s                                          # literal
+			(?<protocol>UDP|TCP|TLS)\s
+			(?<dir>Sent)\( (?<size1>\d{1,4}) / (?<size2>\d{1,4}) \)\s
 			SrcPort\( (?<src_port>\d{1,5}) \),\s
 			RmtPort\( (?<dst_port>\d{1,5}) \),\s
 			RmtIP\( (?<dst_host>\d{1,3}\.\d{1,3}.\d{1,3}\.\d{1,3}) \)
@@ -82,21 +85,21 @@ for my $file ( @$files ) {
 				||
 			
 			$line =~ m%^
-			(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s
-			(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}),(?<msec>\d{3})
-			\(\d{1,5}\)\s\[
-			(?<thread>0x[0-9a-f]{1,5}) \]\s
-			SipCallMan \s\(\d{1,5}\)\s 
-			(?<dir>recv)\s
-			(?<protocol>UDP|TCP)\s
-			data\slen\s=\s(?<size1>\d{1,4})
-			,org\s
-			(?<src_host>\d{1,3}\.\d{1,3}.\d{1,3}\.\d{1,3})
-			:\(
-			(?<src_port>\d{1,5})
-			\)\sdest\s\(
-			(?<dst_port>\d{1,5}) 
-			\)\safter\srecv
+			(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s                     # Y-M-D
+			(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}),(?<msec>\d{3})    # HH:mm:SS,ms
+			\(\d{1,5}\)\s\[                                                    # literal number inside of parenthisis
+			(?<thread>0x[0-9a-f]{1,5}) \]\s                                    # Thread ID:  a hexidcimal number inside of square brakets
+			SipCallMan \s\(\d{1,5}\)\s                                         # Literal "SipCallMan", followed by 1-5 digits in parenthesis
+			(?<dir>recv)\s                                                     # literal "recv"  captured in named capture "dir"
+			(?<protocol>UDP|TCP|TLS)\s                                             # "UDP" or "TCP"
+			data\slen\s=\s(?<size1>\d{1,4})                                    # literal "data len = " followed by a 1-4 digit number
+			,org\s                                                             # literal ",org "
+			(?<src_host>\d{1,3}\.\d{1,3}.\d{1,3}\.\d{1,3})                     # an IP address (1-3 digits followed by a dot...)
+			:\(                                                                # a colon then a literal left parenthesis
+			(?<src_port>\d{1,5})                                               # a 1-5 digit number
+			\)\sdest\s\(                                                       # literal ") dest ("
+			(?<dst_port>\d{1,5})                                               # a 1-5 digit number
+			\)\safter\srecv                                                    # literal ") after recv"
 			%x
 		) {
 			undef($current);
@@ -135,26 +138,27 @@ for my $file ( @$files ) {
 }
 
 
-	for my $key (sort keys %$loglines) {
-		my $line = $loglines->{$key};
-		
-		# Get seconds from Epoch from the timestamp:
-		my $ts_sec = timelocal(
-			$line->{second},
-			$line->{minute},
-			$line->{hour},
-			$line->{day},
-			( $line->{month} - 1 ),
-			$line->{year}
-		);
-		
-		my $size = $line->{size1};
-		if ($line->{size2}) {
-			$size = $line->{size2} if ( $line->{size2} > $size );
-		}
-		
 
-		my $frame = $cap->new_frame(
+for my $key (sort keys %$loglines) {
+	my $line = $loglines->{$key};
+	
+	# Get seconds from Epoch from the timestamp:
+	my $ts_sec = timelocal(
+		$line->{second},
+		$line->{minute},
+		$line->{hour},
+		$line->{day},
+		( $line->{month} - 1 ),
+		$line->{year}
+	);
+	
+	my $size = $line->{size1};
+	if ($line->{size2}) {
+		$size = $line->{size2} if ( $line->{size2} > $size );
+	}
+	
+
+	my $frame = $cap->new_frame(
 		ether_dst  => $line->{ether_dst},
 		ether_src  => $line->{ether_src},
 		ts_sec     => $ts_sec,
@@ -168,7 +172,7 @@ for my $file ( @$files ) {
 	);
 
 
-	}
+}
 
 
 sub get_ip {
